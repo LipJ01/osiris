@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.lab.osiris</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/jack/lab/osiris/scripts/run-service.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/jack/lab/osiris</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>NEXT_TELEMETRY_DISABLED</key>
+    <string>1</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/jack/lab/osiris/logs/osiris.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/jack/lab/osiris/logs/osiris.err.log</string>
+</dict>
+</plist>

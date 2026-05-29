@@ -6,6 +6,9 @@ import {
   Plane, Satellite, Activity, Globe, Radio, Eye,
   Shield, Sun, AlertTriangle, Camera, Flame, Target,
   CloudLightning, Radiation, Tv, Anchor, Ship, Newspaper,
+  Fish, Fuel, Pickaxe, Trees, Landmark, Cable, Rocket, Wind,
+  Biohazard, Megaphone, Network, Bug, Tent, Container, Train,
+  Package, Server, Cpu, Mountain, WifiOff, Snowflake, Pill, Ban,
   ChevronDown, ChevronUp, ToggleLeft, ToggleRight,
 } from 'lucide-react';
 
@@ -33,7 +36,128 @@ const LAYER_GROUPS = [
     color: '#00BCD4',
     layers: [
       { key: 'maritime', label: 'Maritime / Naval', icon: Ship, color: '#00BCD4', dataKey: 'maritime_ships,maritime_ports,maritime_chokepoints' },
+      { key: 'sharks', label: 'Tagged Sharks', icon: Fish, color: '#1DE9B6', dataKey: 'sharks' },
       { key: 'satellites', label: 'Satellites', icon: Satellite, color: '#D4AF37', dataKey: 'satellites' },
+      { key: 'spaceports', label: 'Spaceports', icon: Rocket, color: '#FF80AB', dataKey: 'spaceports' },
+    ],
+  },
+  {
+    label: 'FISHERIES',
+    icon: Fish,
+    color: '#1DE9B6',
+    layers: [
+      { key: 'fish_stocks', label: 'Stock Health', icon: Fish, color: '#1DE9B6', dataKey: 'fish_stocks' },
+      { key: 'fishing_effort', label: 'Fishing Effort (GFW)', icon: Anchor, color: '#FF6B00', dataKey: 'fishing_effort' },
+      { key: 'fish_landings', label: 'US Landings (NOAA)', icon: Anchor, color: '#FFD500', dataKey: 'fish_landings' },
+    ],
+  },
+  {
+    label: 'BIOMES',
+    icon: Trees,
+    color: '#4CAF50',
+    layers: [
+      { key: 'forests', label: 'Forests', icon: Trees, color: '#4CAF50', dataKey: 'forests' },
+      { key: 'coral_reefs', label: 'Coral Reefs', icon: Fish, color: '#FF80AB', dataKey: 'coral_reefs' },
+    ],
+  },
+  {
+    label: 'RESOURCES',
+    icon: Fuel,
+    color: '#FFA000',
+    layers: [
+      { key: 'oil_gas', label: 'Oil & Gas (upstream)', icon: Fuel, color: '#FFA000', dataKey: 'oil_gas' },
+      { key: 'mines', label: 'Tier-1 Mines', icon: Pickaxe, color: '#B0BEC5', dataKey: 'mines' },
+      { key: 'mineral_chains', label: 'Mineral Supply Chains', icon: Network, color: '#FF80AB', dataKey: 'mineral_nodes' },
+    ],
+  },
+  {
+    label: 'MACRO',
+    icon: Landmark,
+    color: '#FFD700',
+    layers: [
+      { key: 'cb_rates', label: 'Central Bank Rates', icon: Landmark, color: '#FFD700', dataKey: 'cb_rates' },
+      { key: 'macro_us', label: 'US Macro Indicators', icon: Landmark, color: '#FFC400', dataKey: 'macro_us_indicators' },
+    ],
+  },
+  {
+    label: 'FREIGHT',
+    icon: Container,
+    color: '#1976D2',
+    layers: [
+      { key: 'shipping_lanes', label: 'Shipping Lanes', icon: Ship, color: '#1976D2', dataKey: 'shipping_lanes' },
+      { key: 'air_cargo', label: 'Air Cargo Hubs', icon: Package, color: '#FF9800', dataKey: 'air_cargo' },
+      { key: 'rail_corridors', label: 'Rail Corridors', icon: Train, color: '#795548', dataKey: 'rail_corridors' },
+    ],
+  },
+  {
+    label: 'INFRASTRUCTURE',
+    icon: Cable,
+    color: '#80DEEA',
+    layers: [
+      { key: 'submarine_cables', label: 'Submarine Cables', icon: Cable, color: '#80DEEA', dataKey: 'submarine_cables' },
+      { key: 'pipelines', label: 'Pipelines', icon: Fuel, color: '#FFA000', dataKey: 'pipelines' },
+      { key: 'power_plants', label: 'Power Plants', icon: Fuel, color: '#FFEB3B', dataKey: 'power_plants' },
+      { key: 'refineries', label: 'Refineries', icon: Fuel, color: '#00BCD4', dataKey: 'refineries' },
+      { key: 'data_centers', label: 'Data Centers', icon: Server, color: '#26C6DA', dataKey: 'data_centers' },
+      { key: 'gpu_clusters', label: 'GPU Clusters', icon: Cpu, color: '#EC407A', dataKey: 'gpu_clusters' },
+    ],
+  },
+  {
+    label: 'INFLUENCE OPS',
+    icon: Megaphone,
+    color: '#EC407A',
+    layers: [
+      { key: 'influence_campaigns', label: 'Named Campaigns', icon: Megaphone, color: '#EC407A', dataKey: 'influence_campaigns' },
+      { key: 'influence_takedowns', label: 'Platform Takedowns', icon: Network, color: '#9C27B0', dataKey: 'influence_takedowns' },
+    ],
+  },
+  {
+    label: 'CONNECTIVITY',
+    icon: WifiOff,
+    color: '#FFAB91',
+    layers: [
+      { key: 'network_interference', label: 'Network Interference (OONI)', icon: WifiOff, color: '#FFAB91', dataKey: 'network_interference' },
+    ],
+  },
+  {
+    label: 'CYBER',
+    icon: Bug,
+    color: '#FF1744',
+    layers: [
+      { key: 'cyber_attacks', label: 'Named Attacks', icon: Bug, color: '#FF1744', dataKey: 'cyber_attacks' },
+      { key: 'ransomware', label: 'Ransomware Tracker', icon: Bug, color: '#E91E63', dataKey: 'ransomware' },
+    ],
+  },
+  {
+    label: 'NARCOTICS',
+    icon: Pill,
+    color: '#BA68C8',
+    layers: [
+      { key: 'drug_seizures', label: 'Major Seizures', icon: Pill, color: '#BA68C8', dataKey: 'drug_seizures' },
+    ],
+  },
+  {
+    label: 'SANCTIONS',
+    icon: Ban,
+    color: '#FF8A65',
+    layers: [
+      { key: 'sanctions', label: 'Sanctions Geography', icon: Ban, color: '#FF8A65', dataKey: 'sanctions' },
+    ],
+  },
+  {
+    label: 'HUMANITARIAN',
+    icon: Tent,
+    color: '#42A5F5',
+    layers: [
+      { key: 'refugees', label: 'Refugee Flows (UNHCR)', icon: Tent, color: '#42A5F5', dataKey: 'refugee_corridors' },
+    ],
+  },
+  {
+    label: 'HEALTH',
+    icon: Biohazard,
+    color: '#FF6B6B',
+    layers: [
+      { key: 'outbreaks', label: 'Disease Outbreaks', icon: Biohazard, color: '#FF6B6B', dataKey: 'outbreaks' },
     ],
   },
   {
@@ -53,6 +177,10 @@ const LAYER_GROUPS = [
       { key: 'earthquakes', label: 'Earthquakes (24h)', icon: Activity, color: '#FF9500', dataKey: 'earthquakes' },
       { key: 'fires', label: 'Active Fires', icon: Flame, color: '#FF6B00', dataKey: 'fires' },
       { key: 'weather', label: 'Severe Weather', icon: CloudLightning, color: '#E040FB', dataKey: 'weather_events' },
+      { key: 'storms', label: 'Active Tropical Cyclones', icon: Wind, color: '#26C6DA', dataKey: 'storms' },
+      { key: 'volcanoes', label: 'Active Volcanoes', icon: Mountain, color: '#FF5722', dataKey: 'volcanoes' },
+      { key: 'sea_ice', label: 'Sea Ice Extent', icon: Snowflake, color: '#90CAF9', dataKey: 'sea_ice' },
+      { key: 'air_quality', label: 'Air Quality', icon: Wind, color: '#FF80AB', dataKey: 'air_quality' },
     ],
   },
   {
@@ -61,8 +189,10 @@ const LAYER_GROUPS = [
     color: '#FF3D3D',
     layers: [
       { key: 'infrastructure', label: 'Nuclear Facilities', icon: Radiation, color: '#76FF03', dataKey: 'infrastructure' },
+      { key: 'military_bases', label: 'Military Bases', icon: Shield, color: '#448AFF', dataKey: 'military_bases' },
       { key: 'global_incidents', label: 'Global Incidents', icon: AlertTriangle, color: '#FF3D3D', dataKey: 'gdelt' },
-      { key: 'gps_jamming', label: 'GPS Jamming', icon: Radio, color: '#FF4444', dataKey: 'gps_jamming' },
+      { key: 'gps_jamming', label: 'GPS Jamming (live)', icon: Radio, color: '#FF4444', dataKey: 'gps_jamming' },
+      { key: 'gps_jamming_daily', label: 'GPS Jamming (24h)', icon: Radio, color: '#FF9100', dataKey: 'gps_jamming_daily' },
       { key: 'scm_suppliers', label: 'SCM Suppliers', icon: Target, color: '#00BCD4', dataKey: 'scm_suppliers' },
     ],
   },
