@@ -68,10 +68,13 @@ export default function LivePopulationClock() {
     const elapsedSeconds = (Date.now() - WORLD_POPULATION_BASE_TS) / 1000;
     return Math.round(WORLD_POPULATION_BASE + elapsedSeconds * WORLD_POPULATION_NET_GROWTH_PER_SECOND);
   }, []);
-  const [population, setPopulation] = useState(() => estimatePopulation());
+  // Initialise to the deterministic base so SSR and the first client render
+  // match (avoids a hydration mismatch); jump to the live estimate after mount.
+  const [population, setPopulation] = useState(WORLD_POPULATION_BASE);
   const previousPopulation = useRef(population);
 
   useEffect(() => {
+    setPopulation(estimatePopulation());
     const iv = setInterval(() => setPopulation(estimatePopulation()), WORLD_POPULATION_UPDATE_MS);
     return () => clearInterval(iv);
   }, [estimatePopulation]);

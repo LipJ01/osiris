@@ -436,6 +436,13 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         'text-offset': [0, 1.2], 'text-allow-overlap': false,
       }, paint: { 'text-color': ['match', ['get','type'], 'military','#FF1744', 'tanker','#FF9500', 'cargo','#00BCD4', '#fff'], 'text-halo-color': '#000', 'text-halo-width': 1 }});
 
+      // Install the extended intelligence layers (resources, fisheries, infra,
+      // cyber, influence, humanitarian, …) — see components/map-layers. Must run
+      // inside the load handler so the style is ready for addLayer. popup/pStyle/
+      // linkStyle are defined below in the effect body and captured by closure;
+      // this callback runs after the style loads, so they're initialised by then.
+      installExtendedLayers(map, { popup, pStyle, linkStyle, setSelectedShark });
+
       setMapReady(true);
     });
 
@@ -460,10 +467,6 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     };
     const pStyle = `background:rgba(12,14,26,0.95);backdrop-filter:blur(16px);border-radius:10px;padding:16px;font-family:'JetBrains Mono',monospace;`;
     const linkStyle = `display:inline-block;margin-top:8px;padding:5px 12px;font-size:10px;letter-spacing:0.12em;text-decoration:none;border-radius:5px;font-family:'JetBrains Mono',monospace;`;
-
-    // Install the extended intelligence layers (resources, fisheries, infra,
-    // cyber, influence, humanitarian, …) — see components/map-layers.
-    installExtendedLayers(map, { popup, pStyle, linkStyle, setSelectedShark });
 
     // ── Flights (with FlightAware + ADS-B Exchange links) ──
     ['fl-commercial','fl-private','fl-jets','fl-military'].forEach(layer => {
