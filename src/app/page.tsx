@@ -599,7 +599,7 @@ export default function Dashboard() {
                 className="overflow-hidden whitespace-nowrap"
               >
                 <p className="text-[10px] md:text-[11px] font-mono tracking-[0.5em] text-[var(--gold-primary)]" style={{ opacity: 0.8 }}>
-                  GLOBAL INTELLIGENCE PLATFORM
+                  MONITORING THE SITUATION
                 </p>
               </motion.div>
             </div>
@@ -761,7 +761,7 @@ export default function Dashboard() {
               OPEN SOURCE
             </span>
           </div>
-          <span className="text-[8px] md:text-[9px] text-[var(--gold-primary)] font-mono tracking-[0.2em] md:tracking-[0.3em] opacity-80">GLOBAL INTELLIGENCE COMMAND</span>
+          <span className="text-[8px] md:text-[9px] text-[var(--gold-primary)] font-mono tracking-[0.2em] md:tracking-[0.3em] opacity-80">MONITORING THE SITUATION</span>
         </div>
       </motion.div>
 
