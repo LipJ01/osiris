@@ -5,6 +5,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { installExtendedLayers, EXTENDED_SOURCES } from './map-layers/installExtendedLayers';
 import { useExtendedLayerSync, type SelectedShark } from './map-layers/useExtendedLayerSync';
+import { useGamepadMapControl } from './useGamepadMapControl';
 
 interface OsirisMapProps {
   data: any;
@@ -846,6 +847,10 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
   // Extended intelligence layers — data sync (see components/map-layers).
   useExtendedLayerSync({ mapReady, data, activeLayers, setGeo, selectedShark, mapRef });
 
+  // Gamepad map control (desktop): left stick pans, triggers zoom, A targets
+  // the snapped POI, B closes the popup. See useGamepadMapControl.
+  const { gamepadConnected, reticleRef } = useGamepadMapControl({ mapRef, popupRef });
+
   const setVis = useCallback((ids: string[], visible: boolean) => {
     const map = mapRef.current;
     if (!map) return;
@@ -1146,7 +1151,29 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     }
   }, [mapReady, mapStyle]);
 
-  return <div ref={containerRef} className="absolute inset-0 w-full h-full" />;
+  return (
+    <>
+      <div ref={containerRef} className="absolute inset-0 w-full h-full" />
+      {gamepadConnected && (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <div
+            ref={reticleRef}
+            data-locked="0"
+            className="osiris-reticle absolute left-1/2 top-1/2"
+            style={{ transform: 'translate(-50%, -50%)', willChange: 'transform', transition: 'filter 180ms cubic-bezier(.2,.8,.2,1)' }}
+          >
+            <svg width="56" height="56" viewBox="0 0 56 56" style={{ mixBlendMode: 'difference', display: 'block' }}>
+              {/* Four rounded L-corners forming a viewfinder box */}
+              <path d="M6 16 V10 a4 4 0 0 1 4 -4 H16" fill="none" stroke="#D4AF37" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="M40 6 H46 a4 4 0 0 1 4 4 V16" fill="none" stroke="#D4AF37" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="M50 40 V46 a4 4 0 0 1 -4 4 H40" fill="none" stroke="#D4AF37" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="M16 50 H10 a4 4 0 0 1 -4 -4 V40" fill="none" stroke="#D4AF37" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 export default memo(OsirisMap);
