@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { installExtendedLayers, EXTENDED_SOURCES } from './map-layers/installExtendedLayers';
+import { useExtendedLayerSync, type SelectedShark } from './map-layers/useExtendedLayerSync';
 
 interface OsirisMapProps {
   data: any;
@@ -45,6 +47,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [selectedShark, setSelectedShark] = useState<SelectedShark | null>(null);
   const prevStyleRef = useRef(mapStyle);
 
   // Create aircraft icon on canvas (for WebGL symbol layer)
@@ -109,7 +112,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       createDot(map, 'dot-cctv', '#39FF14', 10);
 
       // Sources
-      const sources = ['flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets'];
+      const sources = ['flights','military','jets','private-fl','satellites','earthquakes','gdelt','gps-jamming','day-night','cctv','fires','weather','infrastructure','maritime','maritime-choke','maritime-ships','live-news','sigint-news','conflict-zones', 'war-alerts-targets', 'war-alerts-lines', 'balloons', 'radiation', 'ip-sweep-devices', 'ip-sweep-pulse', 'ip-sweep-connections', 'scan-targets', ...EXTENDED_SOURCES];
       sources.forEach(s => map.addSource(s, { type: 'geojson', data: EMPTY_FC }));
 
       // ── CONFLICT ZONES — small warning markers (not polygons) ──
@@ -451,10 +454,16 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     // ── POPUP HELPER ──
     const popup = (coords: any, html: string) => {
       popupRef.current?.remove();
-      popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: '420px', offset: 14 }).setLngLat(coords).setHTML(html).addTo(map);
+      const pop = new maplibregl.Popup({ closeButton: true, maxWidth: '420px', offset: 14 }).setLngLat(coords).setHTML(html).addTo(map);
+      pop.on('close', () => { setSelectedShark(null); });
+      popupRef.current = pop;
     };
     const pStyle = `background:rgba(12,14,26,0.95);backdrop-filter:blur(16px);border-radius:10px;padding:16px;font-family:'JetBrains Mono',monospace;`;
     const linkStyle = `display:inline-block;margin-top:8px;padding:5px 12px;font-size:10px;letter-spacing:0.12em;text-decoration:none;border-radius:5px;font-family:'JetBrains Mono',monospace;`;
+
+    // Install the extended intelligence layers (resources, fisheries, infra,
+    // cyber, influence, humanitarian, …) — see components/map-layers.
+    installExtendedLayers(map, { popup, pStyle, linkStyle, setSelectedShark });
 
     // ── Flights (with FlightAware + ADS-B Exchange links) ──
     ['fl-commercial','fl-private','fl-jets','fl-military'].forEach(layer => {
@@ -830,6 +839,9 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     const src = mapRef.current?.getSource(source) as any;
     if (src) src.setData({ type: 'FeatureCollection', features });
   }, []);
+
+  // Extended intelligence layers — data sync (see components/map-layers).
+  useExtendedLayerSync({ mapReady, data, activeLayers, setGeo, selectedShark, mapRef });
 
   const setVis = useCallback((ids: string[], visible: boolean) => {
     const map = mapRef.current;

@@ -20,7 +20,7 @@ import { NextResponse } from 'next/server';
  *   status       operating | construction | planned
  */
 
-type ChipFamily = 'H100' | 'H200' | 'B200' | 'GB200' | 'GB300' | 'A100' | 'TPU' | 'Trainium' | 'MTIA' | 'Dojo' | 'mixed';
+type ChipFamily = 'H100' | 'H200' | 'H800' | 'B200' | 'GB200' | 'GB300' | 'A100' | 'TPU' | 'Trainium' | 'MTIA' | 'Dojo' | 'mixed';
 type ClusterStatus = 'operating' | 'construction' | 'planned';
 type Operator = 'OpenAI' | 'Microsoft' | 'Google' | 'Meta' | 'xAI' | 'Anthropic' | 'AWS' | 'Oracle' | 'Tesla' | 'CoreWeave' | 'ByteDance' | 'Alibaba' | 'Baidu' | 'Tencent' | 'G42' | 'Apple' | 'Other';
 

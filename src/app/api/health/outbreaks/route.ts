@@ -240,6 +240,7 @@ interface RawDon {
   PublicationDate: string;
   Title: string;
   ItemDefaultUrl: string;
+  UrlName?: string;
   Summary?: string;
   Overview?: string;
 }
