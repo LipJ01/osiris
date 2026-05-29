@@ -40,3 +40,10 @@ scanner/
 
 # Security - prevent accidental backup commits
 scanner_backend_backup.js
+
+# Disk cache for API layers
+.cache/
+
+# Runtime logs and local artifacts
+logs/
+screen-4.png

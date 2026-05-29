@@ -2,7 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  serverExternalPackages: ['ws'],
+  allowedDevOrigins: ['accordingly-genius-stickers-fossil.trycloudflare.com'],
+  serverExternalPackages: ['ws', 'better-sqlite3'],
   transpilePackages: ['react-map-gl', 'mapbox-gl', 'maplibre-gl'],
   typescript: {
     ignoreBuildErrors: true,

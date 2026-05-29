@@ -15,6 +15,8 @@ import ViewPresets from '@/components/ViewPresets';
 import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 import GlobalStatusBar from '@/components/GlobalStatusBar';
 import LiveAlerts from '@/components/LiveAlerts';
+import LivePopulationClock from '@/components/LivePopulationClock';
+import { EXTRA_LAYER_FEEDS } from '@/lib/layerFeeds';
 
 const OsirisMap = dynamic(() => import('@/components/OsirisMap'), { ssr: false });
 const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
@@ -145,6 +147,44 @@ export default function Dashboard() {
     global_incidents: true,
     war_alerts: false,
     gps_jamming: false,
+    gps_jamming_daily: false,
+    scm_suppliers: false,
+    // Extended intelligence layers (see lib/layerFeeds)
+    sharks: false,
+    spaceports: false,
+    fish_stocks: false,
+    fishing_effort: false,
+    fish_landings: false,
+    forests: false,
+    coral_reefs: false,
+    oil_gas: false,
+    mines: false,
+    mineral_chains: false,
+    refineries: false,
+    cb_rates: false,
+    macro_us: false,
+    shipping_lanes: false,
+    air_cargo: false,
+    rail_corridors: false,
+    submarine_cables: false,
+    pipelines: false,
+    power_plants: false,
+    data_centers: false,
+    gpu_clusters: false,
+    influence_campaigns: false,
+    influence_takedowns: false,
+    network_interference: false,
+    cyber_attacks: false,
+    ransomware: false,
+    drug_seizures: false,
+    sanctions: false,
+    refugees: false,
+    outbreaks: false,
+    military_bases: false,
+    air_quality: false,
+    storms: false,
+    volcanoes: false,
+    sea_ice: false,
     day_night: true,
   });
   const [liveFeedUrl, setLiveFeedUrl] = useState<string | null>(null);
@@ -404,6 +444,27 @@ export default function Dashboard() {
       intervals.push(setInterval(() => fetchEndpoint('/api/scm-suppliers', d => ({ scm_suppliers: d.suppliers })), 30000)); // 30s
     }
     // Fires: no polling needed (data changes very slowly, initial fetch is enough)
+    return () => intervals.forEach(clearInterval);
+  }, [activeLayers, fetchEndpoint]);
+
+  // ── EXTENDED INTEL LAYERS — lazy fetch on toggle (config-driven, see lib/layerFeeds) ──
+  useEffect(() => {
+    for (const feed of EXTRA_LAYER_FEEDS) {
+      if (feed.triggers.some(t => (activeLayers as Record<string, boolean>)[t]) && !layerFetchedRef.current.has(feed.id)) {
+        fetchEndpoint(feed.url, feed.transform);
+        layerFetchedRef.current.add(feed.id);
+      }
+    }
+  }, [activeLayers, fetchEndpoint]);
+
+  // ── EXTENDED INTEL LAYERS — polling for time-sensitive feeds ──
+  useEffect(() => {
+    const intervals: ReturnType<typeof setInterval>[] = [];
+    for (const feed of EXTRA_LAYER_FEEDS) {
+      if (feed.pollMs && feed.triggers.some(t => (activeLayers as Record<string, boolean>)[t])) {
+        intervals.push(setInterval(() => fetchEndpoint(feed.url, feed.transform), feed.pollMs));
+      }
+    }
     return () => intervals.forEach(clearInterval);
   }, [activeLayers, fetchEndpoint]);
 
@@ -726,7 +787,9 @@ export default function Dashboard() {
         </span>
 
         <UptimeClock />
-        
+
+        <LivePopulationClock />
+
         <a href='https://ko-fi.com/M8D41ZYW4Z' target='_blank' className="pointer-events-auto hover:opacity-80 transition-opacity ml-1 flex items-center">
           <span className="px-3 py-1 rounded-sm border border-[var(--gold-primary)]/40 bg-[var(--gold-primary)]/10 text-[var(--gold-primary)] text-[11px] font-bold tracking-[0.2em]">SUPPORT PROJECT</span>
         </a>
