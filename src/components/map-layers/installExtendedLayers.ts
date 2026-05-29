@@ -1286,12 +1286,12 @@ export function installExtendedLayers(map: maplibregl.Map, ctx: ExtendedLayerCon
         'US',    '#448AFF', 'EU',    '#3949AB', 'Other', '#80CBC4',
         '#80CBC4'];
       map.addLayer({ id: 'mineral-nodes-glow', type: 'circle', source: 'mineral-nodes', paint: {
-        'circle-radius': ['*', STAGE_RADIUS_MUL, ['interpolate',['linear'],['zoom'], 1, 8, 5, 14, 10, 20]],
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1, ['*', STAGE_RADIUS_MUL, 8], 5, ['*', STAGE_RADIUS_MUL, 14], 10, ['*', STAGE_RADIUS_MUL, 20]],
         'circle-color': MINERAL_COLOR,
         'circle-opacity': 0.10, 'circle-blur': 1,
       }});
       map.addLayer({ id: 'mineral-nodes-dots', type: 'circle', source: 'mineral-nodes', paint: {
-        'circle-radius': ['*', STAGE_RADIUS_MUL, ['interpolate',['linear'],['zoom'], 1, 3.5, 5, 6, 10, 9]],
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1, ['*', STAGE_RADIUS_MUL, 3.5], 5, ['*', STAGE_RADIUS_MUL, 6], 10, ['*', STAGE_RADIUS_MUL, 9]],
         'circle-color': MINERAL_COLOR,
         'circle-opacity': 0.92,
         'circle-stroke-width': 1.5,
