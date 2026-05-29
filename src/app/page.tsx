@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, BarChart3, Newspaper, Search, Share2, Map as MapIcon, X, Globe, MapPinned, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Building2, RadioTower, Activity } from 'lucide-react';
+import { Layers, BarChart3, Newspaper, Search, Share2, Map as MapIcon, X, Globe, MapPinned, Radar, Satellite, Moon, ExternalLink, AlertTriangle, Building2, RadioTower, Activity, ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
 import IntelFeed from '@/components/IntelFeed';
 import MarketsPanel from '@/components/MarketsPanel';
 import SearchBar from '@/components/SearchBar';
@@ -52,6 +52,107 @@ const UptimeClock = () => {
   return <span className="hidden lg:inline">UPTIME: <span className="text-[var(--gold-primary)]">{uptime}</span></span>;
 };
 
+const WORLD_POPULATION_BASE = 8_293_639_584;
+const WORLD_POPULATION_BASE_TS = Date.UTC(2026, 4, 25, 12, 0, 0);
+const WORLD_POPULATION_NET_GROWTH_PER_SECOND = 2.2;
+const WORLD_POPULATION_UPDATE_MS = 1200;
+const OTHER_MAMMALS_ESTIMATE = 137_000_000_000;
+
+const FlipDigit = ({ value, previous }: { value: string; previous: string }) => {
+  const changed = value !== previous;
+
+  return (
+    <span className="live-population__flap" data-changed={changed ? 'true' : 'false'}>
+      <span className="live-population__flap-static live-population__flap-static--top">{value}</span>
+      <span className="live-population__flap-static live-population__flap-static--bottom">{value}</span>
+      <AnimatePresence initial={false}>
+        {changed && (
+          <motion.span
+            key={`top-${previous}-${value}`}
+            className="live-population__flap-blade live-population__flap-blade--top"
+            initial={{ rotateX: 0, filter: 'brightness(1.18)' }}
+            animate={{ rotateX: [0, -64, -104], filter: ['brightness(1.24)', 'brightness(0.75)', 'brightness(0.36)'] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.28, times: [0, 0.66, 1], ease: [0.74, 0, 0.84, 0] }}
+          >
+            {previous}
+          </motion.span>
+        )}
+      </AnimatePresence>
+      <AnimatePresence initial={false}>
+        {changed && (
+          <motion.span
+            key={`bottom-${previous}-${value}`}
+            className="live-population__flap-blade live-population__flap-blade--bottom"
+            initial={{ rotateX: 96, filter: 'brightness(0.42)' }}
+            animate={{ rotateX: [96, -9, 0], filter: ['brightness(0.46)', 'brightness(1.32)', 'brightness(1.08)'] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.44, delay: 0.14, times: [0, 0.72, 1], ease: [0.16, 1, 0.3, 1] }}
+          >
+            {value}
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </span>
+  );
+};
+
+const SplitFlapNumber = ({ value, previous }: { value: string; previous: string }) => (
+  <span className="live-population__odometer" aria-label={value}>
+    {value.split('').map((char, index) => (
+      char === ',' ? (
+        <span className="live-population__separator" key={`${char}-${index}`}>,</span>
+      ) : (
+        <FlipDigit value={char} previous={previous[index] || char} key={index} />
+      )
+    ))}
+  </span>
+);
+
+const LivePopulationClock = () => {
+  const estimatePopulation = useCallback(() => {
+    const elapsedSeconds = (Date.now() - WORLD_POPULATION_BASE_TS) / 1000;
+    return Math.round(WORLD_POPULATION_BASE + elapsedSeconds * WORLD_POPULATION_NET_GROWTH_PER_SECOND);
+  }, []);
+  const [population, setPopulation] = useState(() => estimatePopulation());
+  const previousPopulation = useRef(population);
+
+  useEffect(() => {
+    const iv = setInterval(() => setPopulation(estimatePopulation()), WORLD_POPULATION_UPDATE_MS);
+    return () => clearInterval(iv);
+  }, [estimatePopulation]);
+
+  useEffect(() => {
+    previousPopulation.current = population;
+  }, [population]);
+
+  const populationChars = population.toLocaleString('en-GB').split('');
+  const previousChars = previousPopulation.current.toLocaleString('en-GB').split('');
+  const populationValue = populationChars.join('');
+  const previousPopulationValue = previousChars.join('');
+  const otherMammalsValue = OTHER_MAMMALS_ESTIMATE.toLocaleString('en-GB');
+
+  return (
+    <span
+      className="live-population hidden md:inline-flex pointer-events-auto"
+      title="Humans are an interpolated live estimate. Other mammals is a rough headcount estimate: wild mammals plus domesticated non-human mammals."
+    >
+      <span className="live-population__rows">
+        <span className="live-population__row">
+          <span className="live-population__pulse" />
+          <span className="live-population__label">HUMANS</span>
+          <SplitFlapNumber value={populationValue} previous={previousPopulationValue} />
+        </span>
+        <span className="live-population__row">
+          <span className="live-population__pulse live-population__pulse--muted" />
+          <span className="live-population__label">OTHER MAMMALS</span>
+          <SplitFlapNumber value={otherMammalsValue} previous={otherMammalsValue} />
+        </span>
+      </span>
+    </span>
+  );
+};
+
 export default function Dashboard() {
   const dataRef = useRef<any>({});
   const [dataVersion, setDataVersion] = useState(0);
@@ -70,10 +171,13 @@ export default function Dashboard() {
   const [showLayers, setShowLayers] = useState(true);
   const [showMarkets, setShowMarkets] = useState(true);
   const [showIntel, setShowIntel] = useState(true);
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'layers'|'markets'|'intel'|'search'|'recon'|null>(null);
   const [mapProjection, setMapProjection] = useState<'globe'|'mercator'>('globe');
   const [mapStyle, setMapStyle] = useState<'dark'|'satellite'>('dark');
+  const [wallMonitorMode, setWallMonitorMode] = useState(false);
 
   const isMobile = useIsMobile();
   const startTime = useRef(Date.now());
@@ -88,6 +192,41 @@ export default function Dashboard() {
     jets: false,
     military: false,
     maritime: false,
+    sharks: false,
+    fish_stocks: false,
+    fishing_effort: false,
+    fish_landings: false,
+    oil_gas: false,
+    refineries: false,
+    mines: false,
+    mineral_chains: false,
+    forests: false,
+    coral_reefs: false,
+    cb_rates: false,
+    macro_us: false,
+    submarine_cables: false,
+    pipelines: false,
+    data_centers: false,
+    gpu_clusters: false,
+    shipping_lanes: false,
+    air_cargo: false,
+    rail_corridors: false,
+    power_plants: false,
+    military_bases: false,
+    spaceports: false,
+    air_quality: false,
+    storms: false,
+    volcanoes: false,
+    sea_ice: false,
+    outbreaks: false,
+    refugees: false,
+    influence_campaigns: false,
+    influence_takedowns: false,
+    cyber_attacks: false,
+    ransomware: false,
+    drug_seizures: false,
+    sanctions: false,
+    network_interference: false,
     satellites: false,
     balloons: false,
     cctv: true,
@@ -100,6 +239,7 @@ export default function Dashboard() {
     global_incidents: true,
     war_alerts: false,
     gps_jamming: false,
+    gps_jamming_daily: false,
     day_night: true,
   });
   const [liveFeedUrl, setLiveFeedUrl] = useState<string | null>(null);
@@ -119,6 +259,8 @@ export default function Dashboard() {
     const lat = parseFloat(p.get('lat') || '');
     const lon = parseFloat(p.get('lon') || '');
     const zoom = parseFloat(p.get('zoom') || '');
+    const wallMode = ['1', 'true', 'yes', 'on'].includes((p.get('wall') || p.get('monitor') || p.get('wallMonitor') || '').toLowerCase());
+    setWallMonitorMode(wallMode);
     if (!isNaN(lat) && !isNaN(lon)) {
       setFlyToLocation({ lat, lng: lon, ts: Date.now() });
       if (!isNaN(zoom)) setMapView(v => ({ ...v, zoom }));
@@ -138,6 +280,7 @@ export default function Dashboard() {
   const urlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (wallMonitorMode) return;
     if (urlTimer.current) clearTimeout(urlTimer.current);
     urlTimer.current = setTimeout(() => {
       const p = new URLSearchParams();
@@ -149,7 +292,7 @@ export default function Dashboard() {
       const url = `${window.location.pathname}?${p.toString()}`;
       window.history.replaceState(null, '', url);
     }, 1500);
-  }, [mapView, activeLayers, mouseCoords]);
+  }, [mapView, activeLayers, mouseCoords, wallMonitorMode]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -168,6 +311,19 @@ export default function Dashboard() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Gamepad stick-press toggles (dispatched from OsirisMap's gamepad loop):
+  // L3 → left data-layers side panel, R3 → right-hand UI panes.
+  useEffect(() => {
+    const onLeft = () => setLeftPanelOpen(p => !p);
+    const onRight = () => setRightPanelOpen(p => !p);
+    window.addEventListener('osiris:toggle-left-panel', onLeft);
+    window.addEventListener('osiris:toggle-right-panel', onRight);
+    return () => {
+      window.removeEventListener('osiris:toggle-left-panel', onLeft);
+      window.removeEventListener('osiris:toggle-right-panel', onRight);
+    };
   }, []);
 
   // Mouse coords + reverse geocode
@@ -291,6 +447,181 @@ export default function Dashboard() {
       fetchEndpoint('/api/maritime', d => ({ maritime_ports: d.ports, maritime_chokepoints: d.chokepoints, maritime_ships: d.ships }));
       layerFetchedRef.current.add('maritime');
     }
+    // Sharks (OCEARCH) — pings move slowly; no polling needed beyond first fetch
+    if (activeLayers.sharks && !layerFetchedRef.current.has('sharks')) {
+      fetchEndpoint('/api/sharks', d => ({ sharks: d.sharks }));
+      layerFetchedRef.current.add('sharks');
+    }
+    // Fish stock health — static curated dataset
+    if (activeLayers.fish_stocks && !layerFetchedRef.current.has('fish_stocks')) {
+      fetchEndpoint('/api/fisheries', d => ({ fish_stocks: d.stocks }));
+      layerFetchedRef.current.add('fish_stocks');
+    }
+    // Fishing effort — Global Fishing Watch zone aggregates (6h cached server-side)
+    if (activeLayers.fishing_effort && !layerFetchedRef.current.has('fishing_effort')) {
+      fetchEndpoint('/api/fisheries/effort', d => ({ fishing_effort: d.zones, fishing_effort_range: d.date_range }));
+      layerFetchedRef.current.add('fishing_effort');
+    }
+    // US commercial landings — NOAA FOSS (24h cached server-side)
+    if (activeLayers.fish_landings && !layerFetchedRef.current.has('fish_landings')) {
+      fetchEndpoint('/api/fisheries/landings', d => ({ fish_landings: d.states, fish_landings_year: d.year, fish_landings_total: d.total_dollars }));
+      layerFetchedRef.current.add('fish_landings');
+    }
+    // Oil & Gas upstream — curated dataset
+    if (activeLayers.oil_gas && !layerFetchedRef.current.has('oil_gas')) {
+      fetchEndpoint('/api/resources/oil-gas', d => ({ oil_gas: d.fields }));
+      layerFetchedRef.current.add('oil_gas');
+    }
+    // Tier-1 mines — curated dataset
+    if (activeLayers.mines && !layerFetchedRef.current.has('mines')) {
+      fetchEndpoint('/api/resources/mines', d => ({ mines: d.mines }));
+      layerFetchedRef.current.add('mines');
+    }
+    // Critical mineral supply chains — nodes + edges, EV decoupling story
+    if (activeLayers.mineral_chains && !layerFetchedRef.current.has('mineral_chains')) {
+      fetchEndpoint('/api/resources/minerals', d => ({ mineral_nodes: d.nodes, mineral_edges: d.edges }));
+      layerFetchedRef.current.add('mineral_chains');
+    }
+    // Refineries (downstream) — curated dataset
+    if (activeLayers.refineries && !layerFetchedRef.current.has('refineries')) {
+      fetchEndpoint('/api/resources/refineries', d => ({ refineries: d.refineries }));
+      layerFetchedRef.current.add('refineries');
+    }
+    // Forests — curated dataset
+    if (activeLayers.forests && !layerFetchedRef.current.has('forests')) {
+      fetchEndpoint('/api/biomes/forests', d => ({ forests: d.forests }));
+      layerFetchedRef.current.add('forests');
+    }
+    // Coral reefs — curated dataset, BIOMES sibling of Forests
+    if (activeLayers.coral_reefs && !layerFetchedRef.current.has('coral_reefs')) {
+      fetchEndpoint('/api/biomes/coral-reefs', d => ({ coral_reefs: d.reefs }));
+      layerFetchedRef.current.add('coral_reefs');
+    }
+    // Central Bank Rates — algo-fund backfill via SQLite cache
+    if (activeLayers.cb_rates && !layerFetchedRef.current.has('cb_rates')) {
+      fetchEndpoint('/api/macro/cb-rates', d => ({ cb_rates: d.banks, cb_rates_built_at: d.built_at }));
+      layerFetchedRef.current.add('cb_rates');
+    }
+    // US Macro Indicators — algo-fund FRED/BLS backfill, dense single-marker
+    if (activeLayers.macro_us && !layerFetchedRef.current.has('macro_us')) {
+      fetchEndpoint('/api/macro/indicators', d => ({ macro_us: d, macro_us_indicators: d.indicators }));
+      layerFetchedRef.current.add('macro_us');
+    }
+    // Submarine Cables — Telegeography (24h cached, per-cable detail loads on click)
+    if (activeLayers.submarine_cables && !layerFetchedRef.current.has('submarine_cables')) {
+      fetchEndpoint('/api/infra/submarine-cables', d => ({ submarine_cables: d.cables, submarine_cable_landings: d.landings }));
+      layerFetchedRef.current.add('submarine_cables');
+    }
+    // Pipelines — curated upstream/midstream geometry
+    if (activeLayers.pipelines && !layerFetchedRef.current.has('pipelines')) {
+      fetchEndpoint('/api/infra/pipelines', d => ({ pipelines: d.pipelines }));
+      layerFetchedRef.current.add('pipelines');
+    }
+    // Data centers — hyperscale regions + colos + IXPs
+    if (activeLayers.data_centers && !layerFetchedRef.current.has('data_centers')) {
+      fetchEndpoint('/api/infra/data-centers', d => ({ data_centers: d.facilities }));
+      layerFetchedRef.current.add('data_centers');
+    }
+    // GPU clusters — frontier AI training fleets
+    if (activeLayers.gpu_clusters && !layerFetchedRef.current.has('gpu_clusters')) {
+      fetchEndpoint('/api/infra/gpu-clusters', d => ({ gpu_clusters: d.clusters }));
+      layerFetchedRef.current.add('gpu_clusters');
+    }
+    // Freight: shipping lanes
+    if (activeLayers.shipping_lanes && !layerFetchedRef.current.has('shipping_lanes')) {
+      fetchEndpoint('/api/freight/shipping-lanes', d => ({ shipping_lanes: d.lanes }));
+      layerFetchedRef.current.add('shipping_lanes');
+    }
+    // Freight: air cargo hubs
+    if (activeLayers.air_cargo && !layerFetchedRef.current.has('air_cargo')) {
+      fetchEndpoint('/api/freight/air-cargo', d => ({ air_cargo: d.hubs }));
+      layerFetchedRef.current.add('air_cargo');
+    }
+    // Freight: rail freight corridors
+    if (activeLayers.rail_corridors && !layerFetchedRef.current.has('rail_corridors')) {
+      fetchEndpoint('/api/freight/rail-corridors', d => ({ rail_corridors: d.corridors }));
+      layerFetchedRef.current.add('rail_corridors');
+    }
+    // Tier-1 power plants — curated dataset
+    if (activeLayers.power_plants && !layerFetchedRef.current.has('power_plants')) {
+      fetchEndpoint('/api/infra/power-plants', d => ({ power_plants: d.plants }));
+      layerFetchedRef.current.add('power_plants');
+    }
+    // Major military bases — curated dataset (strategic posture)
+    if (activeLayers.military_bases && !layerFetchedRef.current.has('military_bases')) {
+      fetchEndpoint('/api/threats/military-bases', d => ({ military_bases: d.bases }));
+      layerFetchedRef.current.add('military_bases');
+    }
+    // Spaceports — curated dataset
+    if (activeLayers.spaceports && !layerFetchedRef.current.has('spaceports')) {
+      fetchEndpoint('/api/space/spaceports', d => ({ spaceports: d.spaceports }));
+      layerFetchedRef.current.add('spaceports');
+    }
+    // Air quality — Open-Meteo CAMS for ~80 megacities (30m cached server-side)
+    if (activeLayers.air_quality && !layerFetchedRef.current.has('air_quality')) {
+      fetchEndpoint('/api/environment/air-quality', d => ({ air_quality: d.cities, air_quality_built_at: d.built_at }));
+      layerFetchedRef.current.add('air_quality');
+    }
+    // Active tropical cyclones — NOAA NHC + NASA EONET (30m cached)
+    if (activeLayers.storms && !layerFetchedRef.current.has('storms')) {
+      fetchEndpoint('/api/environment/storms', d => ({ storms: d.storms, storms_built_at: d.built_at }));
+      layerFetchedRef.current.add('storms');
+    }
+    // Active volcanoes — NASA EONET (Smithsonian GVP, 2h cached)
+    if (activeLayers.volcanoes && !layerFetchedRef.current.has('volcanoes')) {
+      fetchEndpoint('/api/environment/volcanoes', d => ({ volcanoes: d.volcanoes, volcanoes_built_at: d.built_at }));
+      layerFetchedRef.current.add('volcanoes');
+    }
+    // Sea ice extent — NSIDC daily Arctic + Antarctic (12h cached)
+    if (activeLayers.sea_ice && !layerFetchedRef.current.has('sea_ice')) {
+      fetchEndpoint('/api/environment/sea-ice', d => ({ sea_ice: d.poles, sea_ice_built_at: d.built_at }));
+      layerFetchedRef.current.add('sea_ice');
+    }
+    // Disease outbreaks — WHO Disease Outbreak News (4h cached)
+    if (activeLayers.outbreaks && !layerFetchedRef.current.has('outbreaks')) {
+      fetchEndpoint('/api/health/outbreaks', d => ({ outbreaks: d.markers, outbreaks_built_at: d.built_at, outbreaks_total: d.total_reports }));
+      layerFetchedRef.current.add('outbreaks');
+    }
+    // Refugee corridors — UNHCR top 60 cross-border flows (7d cached server-side)
+    if (activeLayers.refugees && !layerFetchedRef.current.has('refugees')) {
+      fetchEndpoint('/api/humanitarian/refugees', d => ({ refugee_corridors: d.corridors, refugee_asylum: d.asylum_markers, refugee_year: d.year }));
+      layerFetchedRef.current.add('refugees');
+    }
+    // Named influence campaigns — curated dataset with operator→target arcs
+    if (activeLayers.influence_campaigns && !layerFetchedRef.current.has('influence_campaigns')) {
+      fetchEndpoint('/api/influence/campaigns', d => ({ influence_campaigns_ops: d.operations, influence_campaigns_operators: d.operators }));
+      layerFetchedRef.current.add('influence_campaigns');
+    }
+    // Platform takedowns — curated Meta/X/YouTube/TikTok/OpenAI CIB events
+    if (activeLayers.influence_takedowns && !layerFetchedRef.current.has('influence_takedowns')) {
+      fetchEndpoint('/api/influence/takedowns', d => ({ influence_takedowns_operators: d.operators, influence_takedowns_total: d.total_events }));
+      layerFetchedRef.current.add('influence_takedowns');
+    }
+    // Named cyberattacks — curated dataset with attacker→target arcs
+    if (activeLayers.cyber_attacks && !layerFetchedRef.current.has('cyber_attacks')) {
+      fetchEndpoint('/api/cyber/attacks', d => ({ cyber_attacks: d.attacks, cyber_targets: d.targets, cyber_arcs: d.arcs }));
+      layerFetchedRef.current.add('cyber_attacks');
+    }
+    // Ransomware tracker — ransomware.live live leak-site postings (1h cached server)
+    if (activeLayers.ransomware && !layerFetchedRef.current.has('ransomware')) {
+      fetchEndpoint('/api/cyber/ransomware', d => ({ ransomware_countries: d.countries, ransomware_total: d.total_victims, ransomware_window: d.window_days, ransomware_groups: d.groups_seen }));
+      layerFetchedRef.current.add('ransomware');
+    }
+    // Major drug seizures — curated 2021-2026 high-profile events
+    if (activeLayers.drug_seizures && !layerFetchedRef.current.has('drug_seizures')) {
+      fetchEndpoint('/api/narcotics/seizures', d => ({ drug_seizures: d.seizures, drug_seizures_total_kg: d.total_kg, drug_seizures_by_drug: d.by_drug }));
+      layerFetchedRef.current.add('drug_seizures');
+    }
+    // Sanctions geography — OpenSanctions consolidated stats (24h cached)
+    if (activeLayers.sanctions && !layerFetchedRef.current.has('sanctions')) {
+      fetchEndpoint('/api/sanctions/geography', d => ({ sanctions: d.countries, sanctions_total_targets: d.total_targets, sanctions_schema_totals: d.schema_totals, sanctions_last_change: d.last_change }));
+      layerFetchedRef.current.add('sanctions');
+    }
+    // Network interference — OONI rolling 7d (6h cached server-side)
+    if (activeLayers.network_interference && !layerFetchedRef.current.has('network_interference')) {
+      fetchEndpoint('/api/connectivity/network-interference', d => ({ network_interference: d.countries, network_interference_built_at: d.built_at, network_interference_total: d.total_measurements }));
+      layerFetchedRef.current.add('network_interference');
+    }
     // Balloons
     if (activeLayers.balloons && !layerFetchedRef.current.has('balloons')) {
       fetchEndpoint('/api/balloons', d => ({ balloons: d.balloons }));
@@ -321,6 +652,11 @@ export default function Dashboard() {
       fetchEndpoint('/api/gdelt', d => ({ gdelt: d.events }));
       layerFetchedRef.current.add('gdelt');
     }
+    // GPS Jamming — 24h aggregate from gpsjam.org (H3-res-4 hex polygons)
+    if (activeLayers.gps_jamming_daily && !layerFetchedRef.current.has('gps_jamming_daily')) {
+      fetchEndpoint('/api/gps-jamming', d => ({ gps_jamming_daily: d }));
+      layerFetchedRef.current.add('gps_jamming_daily');
+    }
 
   }, [activeLayers]);
 
@@ -339,6 +675,22 @@ export default function Dashboard() {
     }
     if (activeLayers.maritime) {
       intervals.push(setInterval(() => fetchEndpoint('/api/maritime', d => ({ maritime_ports: d.ports, maritime_chokepoints: d.chokepoints, maritime_ships: d.ships })), 60000)); // 1m
+    }
+    if (activeLayers.air_quality) {
+      // Server caches 30 min, so client poll every 15 min is plenty fresh
+      intervals.push(setInterval(() => fetchEndpoint('/api/environment/air-quality', d => ({ air_quality: d.cities, air_quality_built_at: d.built_at })), 900000));
+    }
+    if (activeLayers.ransomware) {
+      // Server caches 1h, client refresh every 30 min
+      intervals.push(setInterval(() => fetchEndpoint('/api/cyber/ransomware', d => ({ ransomware_countries: d.countries, ransomware_total: d.total_victims, ransomware_window: d.window_days, ransomware_groups: d.groups_seen })), 1800000));
+    }
+    if (activeLayers.storms) {
+      // Storm positions update every ~6h; client refresh every 30 min
+      intervals.push(setInterval(() => fetchEndpoint('/api/environment/storms', d => ({ storms: d.storms, storms_built_at: d.built_at })), 1800000));
+    }
+    if (activeLayers.volcanoes) {
+      // EONET updates daily; client refresh every 2h
+      intervals.push(setInterval(() => fetchEndpoint('/api/environment/volcanoes', d => ({ volcanoes: d.volcanoes, volcanoes_built_at: d.built_at })), 7200000));
     }
     // Fires: no polling needed (data changes very slowly, initial fetch is enough)
     return () => intervals.forEach(clearInterval);
@@ -374,8 +726,8 @@ export default function Dashboard() {
             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.6 }} className="w-16 h-16 rounded-full border-2 border-[var(--gold-primary)] flex items-center justify-center mb-4 animate-glow-pulse">
               <div className="w-8 h-8 rounded-full bg-[var(--gold-primary)]/20 border border-[var(--gold-primary)]/40" />
             </motion.div>
-            <motion.h1 initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }} className="text-3xl font-bold tracking-[0.6em] text-[var(--text-heading)] font-mono">OSIRIS</motion.h1>
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="text-[9px] text-[var(--gold-primary)] font-mono tracking-[0.3em] mt-2">INITIALIZING GLOBAL INTELLIGENCE FEEDS...</motion.p>
+            <motion.h1 initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }} className="text-3xl font-bold tracking-[0.6em] text-[var(--text-heading)] font-mono">JACKS WORLD</motion.h1>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="text-[9px] text-[var(--gold-primary)] font-mono tracking-[0.3em] mt-2">MONITORING THE SITUATION...</motion.p>
             <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.8, duration: 1.5 }} className="w-48 h-[2px] bg-gradient-to-r from-transparent via-[var(--gold-primary)] to-transparent mt-6 origin-left" />
           </motion.div>
         )}
@@ -390,6 +742,7 @@ export default function Dashboard() {
           activeLayers={activeLayers} 
           projection={mapProjection} 
           mapStyle={mapStyle === 'satellite' ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' : 'dark'} 
+          wallMonitorMode={wallMonitorMode}
           onEntityClick={handleEntityClick} 
           onMouseCoords={handleMouseCoords} 
           onRightClick={handleRightClick} 
@@ -453,13 +806,13 @@ export default function Dashboard() {
           <div className="absolute w-full h-[1px] bg-[var(--gold-primary)]/30" />
         </div>
         <div>
-          <h1 className="text-base md:text-xl font-bold tracking-[0.4em] md:tracking-[0.5em] text-[var(--text-heading)] font-mono">OSIRIS</h1>
-          <span className="text-[8px] md:text-[9px] text-[var(--gold-primary)] font-mono tracking-[0.2em] md:tracking-[0.3em] opacity-80">GLOBAL INTELLIGENCE PLATFORM</span>
+          <h1 className="text-base md:text-xl font-bold tracking-[0.4em] md:tracking-[0.5em] text-[var(--text-heading)] font-mono">JACKS WORLD</h1>
+          <span className="text-[8px] md:text-[9px] text-[var(--gold-primary)] font-mono tracking-[0.2em] md:tracking-[0.3em] opacity-80">MONITORING THE SITUATION</span>
         </div>
       </motion.div>
 
       {/* ── TOP-RIGHT STATUS (desktop) ── */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 3 }} className="status-bar-desktop absolute top-3 right-3 md:top-4 md:right-5 z-[200] pointer-events-none flex items-center gap-2 md:gap-4 text-[9px] md:text-[10px] font-mono tracking-widest text-[var(--text-muted)]">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 3 }} className="status-bar-desktop absolute top-3 right-3 md:top-4 md:right-5 z-[200] pointer-events-none flex items-center justify-end gap-2 md:gap-3 text-[9px] md:text-[10px] font-mono tracking-widest text-[var(--text-muted)] whitespace-nowrap">
         {/* Threat Level Badge with hover breakdown */}
         <span
           className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full relative pointer-events-auto cursor-help"
@@ -515,6 +868,7 @@ export default function Dashboard() {
         {spaceWeather && <span className="hidden lg:inline">SOLAR: <span style={{ color: spaceWeather.storm_color, fontWeight: 700 }}>Kp{spaceWeather.kp_index}</span></span>}
         <UptimeClock />
         <span>V4.1</span>
+        <LivePopulationClock />
       </motion.div>
 
       {/* ── MOBILE: Compact top status ── */}
@@ -530,35 +884,89 @@ export default function Dashboard() {
 
 
       {/* ── LEFT HUD (desktop): Layers + Stats + Markets + Intel ── */}
-      <div className="desktop-panel absolute left-5 top-20 bottom-24 w-72 flex flex-col gap-3 z-[200] pointer-events-none overflow-y-auto styled-scrollbar pr-1">
-        {showLayers && (
-          <>
-            <LayerPanel data={data} activeLayers={activeLayers} setActiveLayers={setActiveLayers} />
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="glass-panel px-3 py-2.5 pointer-events-auto">
-              <div className="grid grid-cols-5 gap-2 text-center">
-                <div><div className="hud-label">AIRCRAFT</div><div className="hud-value text-[10px] animate-data-pulse">{totalFlights.toLocaleString()}</div></div>
-                <div><div className="hud-label">SATS</div><div className="hud-value text-[10px]">{(data.satellites?.length||0).toLocaleString()}</div></div>
-                <div><div className="hud-label">CCTV</div><div className="hud-value text-[10px]">{(data.cameras?.length||0).toLocaleString()}</div></div>
-                <div><div className="hud-label">WEATHER</div><div className="hud-value text-[10px]" style={{ color: '#E040FB' }}>{(data.weather_events?.length||0)}</div></div>
-                <div><div className="hud-label">NUCLEAR</div><div className="hud-value text-[10px]" style={{ color: '#76FF03' }}>{(data.infrastructure?.length||0)}</div></div>
-              </div>
-            </motion.div>
-            <ViewPresets onNavigate={(lat, lng, zoom) => { setFlyToLocation({ lat, lng, ts: Date.now() }); setMapView(v => ({ ...v, zoom })); }} />
-          </>
-        )}
-        {showMarkets && <MarketsPanel data={data} spaceWeather={spaceWeather} />}
-        {showIntel && <IntelFeed data={data} onLocate={(lat, lng) => setFlyToLocation({ lat, lng, ts: Date.now() })} />}
-      </div>
+      <motion.div
+        id="hud-left"
+        data-hud="left"
+        className="desktop-panel absolute left-5 top-20 bottom-24 w-72 z-[200] pointer-events-none"
+        animate={{ x: leftPanelOpen ? 0 : -304 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 38 }}
+        drag="x"
+        dragConstraints={{ left: -304, right: 0 }}
+        dragElastic={0.04}
+        dragMomentum={false}
+        onDragEnd={(_, info) => {
+          if (info.offset.x < -50 || info.velocity.x < -250) setLeftPanelOpen(false);
+          if (info.offset.x > 50 || info.velocity.x > 250) setLeftPanelOpen(true);
+        }}
+      >
+        <div className="h-full flex flex-col gap-3 pointer-events-auto overflow-y-auto styled-scrollbar pr-1">
+          {showLayers && (
+            <>
+              <LayerPanel data={data} activeLayers={activeLayers} setActiveLayers={setActiveLayers} />
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="glass-panel px-3 py-2.5 pointer-events-auto">
+                <div className="grid grid-cols-5 gap-2 text-center">
+                  <div><div className="hud-label">AIRCRAFT</div><div className="hud-value text-[10px] animate-data-pulse">{totalFlights.toLocaleString()}</div></div>
+                  <div><div className="hud-label">SATS</div><div className="hud-value text-[10px]">{(data.satellites?.length||0).toLocaleString()}</div></div>
+                  <div><div className="hud-label">CCTV</div><div className="hud-value text-[10px]">{(data.cameras?.length||0).toLocaleString()}</div></div>
+                  <div><div className="hud-label">WEATHER</div><div className="hud-value text-[10px]" style={{ color: '#E040FB' }}>{(data.weather_events?.length||0)}</div></div>
+                  <div><div className="hud-label">NUCLEAR</div><div className="hud-value text-[10px]" style={{ color: '#76FF03' }}>{(data.infrastructure?.length||0)}</div></div>
+                </div>
+              </motion.div>
+              <ViewPresets onNavigate={(lat, lng, zoom) => { setFlyToLocation({ lat, lng, ts: Date.now() }); setMapView(v => ({ ...v, zoom })); }} />
+            </>
+          )}
+          {showMarkets && <MarketsPanel data={data} spaceWeather={spaceWeather} />}
+          {showIntel && <IntelFeed data={data} onLocate={(lat, lng) => setFlyToLocation({ lat, lng, ts: Date.now() })} />}
+        </div>
+        <button
+          type="button"
+          aria-label={leftPanelOpen ? 'Close data layers drawer' : 'Open data layers drawer'}
+          aria-expanded={leftPanelOpen}
+          onClick={() => setLeftPanelOpen(open => !open)}
+          className="desktop-panel-toggle absolute top-1/2 -right-7 -translate-y-1/2 pointer-events-auto flex flex-col items-center justify-center gap-1 hover:border-[var(--gold-primary)]/40 transition-colors"
+          title={leftPanelOpen ? 'Close data layers' : 'Open data layers'}
+        >
+          <GripVertical className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+          {leftPanelOpen ? (
+            <ChevronLeft className="w-4 h-4 text-[var(--gold-primary)]" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-[var(--gold-primary)]" />
+          )}
+          <span className="sr-only">{leftPanelOpen ? 'Close' : 'Open'}</span>
+        </button>
+      </motion.div>
 
       {/* ── RIGHT HUD (desktop): Search + RECON + Live Alerts ── */}
-      <div className="desktop-panel absolute right-5 top-20 bottom-24 w-80 flex flex-col gap-3 z-[200] pointer-events-auto overflow-y-auto styled-scrollbar pr-1">
-        <div className="flex gap-2 items-start">
-          <div className="flex-1"><SearchBar onLocate={(lat, lng) => setFlyToLocation({ lat, lng, ts: Date.now() })} /></div>
-          <div className="relative"><SharePanel mapView={mapView} activeLayers={activeLayers} mouseCoords={mouseCoords} /></div>
+      <motion.div
+        className="desktop-panel absolute right-5 top-28 bottom-24 w-80 z-[200] pointer-events-none"
+        animate={{ x: rightPanelOpen ? 0 : 360 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 38 }}
+      >
+        <div id="hud-right" data-hud="right" className="h-full flex flex-col gap-3 pointer-events-auto overflow-y-auto styled-scrollbar pr-1">
+          <div className="flex gap-2 items-start">
+            <div className="flex-1"><SearchBar onLocate={(lat, lng) => setFlyToLocation({ lat, lng, ts: Date.now() })} /></div>
+            <div className="relative"><SharePanel mapView={mapView} activeLayers={activeLayers} mouseCoords={mouseCoords} /></div>
+          </div>
+          <OsintPanel />
+          <LiveAlerts data={data} onLocate={(lat, lng) => setFlyToLocation({ lat, lng, ts: Date.now() })} onWatchFeed={(url, name) => { setLiveFeedUrl(url); setLiveFeedName(name); }} />
         </div>
-        <OsintPanel />
-        <LiveAlerts data={data} onLocate={(lat, lng) => setFlyToLocation({ lat, lng, ts: Date.now() })} onWatchFeed={(url, name) => { setLiveFeedUrl(url); setLiveFeedName(name); }} />
-      </div>
+        <button
+          type="button"
+          aria-label={rightPanelOpen ? 'Shrink side panes' : 'Expand side panes'}
+          aria-expanded={rightPanelOpen}
+          onClick={() => setRightPanelOpen(open => !open)}
+          className="desktop-panel-toggle absolute top-1/2 -left-7 -translate-y-1/2 pointer-events-auto flex flex-col items-center justify-center gap-1 hover:border-[var(--gold-primary)]/40 transition-colors"
+          title={rightPanelOpen ? 'Shrink panes' : 'Expand panes'}
+        >
+          <GripVertical className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+          {rightPanelOpen ? (
+            <ChevronRight className="w-4 h-4 text-[var(--gold-primary)]" />
+          ) : (
+            <ChevronLeft className="w-4 h-4 text-[var(--gold-primary)]" />
+          )}
+          <span className="sr-only">{rightPanelOpen ? 'Shrink' : 'Expand'}</span>
+        </button>
+      </motion.div>
 
       {/* ── LIVE FEED VIEWER OVERLAY ── */}
       <AnimatePresence>

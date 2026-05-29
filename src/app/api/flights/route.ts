@@ -52,21 +52,73 @@ const MILITARY_INDICATORS = new Set([
 
 const AIRLINE_CODE_RE = /^([A-Z]{3})\d/;
 
-async function fetchRegion(region: typeof REGIONS[0]): Promise<any[]> {
+// Fallback provider (adsb.fi) caps the radius at 250nm, so it can't reuse the
+// 6 wide regions above. Instead we sample ~16 of the world's busiest airspaces.
+// Coverage is partial by design — enough to keep the map populated while
+// adsb.lol is down, without hammering adsb.fi (which rate-limits ~1 req/s).
+const FALLBACK_HUBS = [
+  { lat: 40.7, lon: -74.0 },   // New York
+  { lat: 41.9, lon: -87.9 },   // Chicago
+  { lat: 34.0, lon: -118.2 },  // Los Angeles
+  { lat: 32.9, lon: -97.0 },   // Dallas
+  { lat: 51.5, lon: -0.45 },   // London
+  { lat: 49.5, lon: 6.0 },     // Paris–Frankfurt
+  { lat: 41.9, lon: 12.5 },    // Rome
+  { lat: 41.0, lon: 28.8 },    // Istanbul
+  { lat: 25.25, lon: 55.36 },  // Dubai
+  { lat: 28.6, lon: 77.1 },    // Delhi
+  { lat: 1.36, lon: 104.0 },   // Singapore
+  { lat: 35.55, lon: 139.78 }, // Tokyo
+  { lat: 31.1, lon: 121.5 },   // Shanghai
+  { lat: -33.9, lon: 151.2 },  // Sydney
+  { lat: -23.4, lon: -46.5 },  // São Paulo
+  { lat: -26.1, lon: 28.2 },   // Johannesburg
+];
+const FALLBACK_DIST = 250; // adsb.fi hard cap (nm)
+
+// Both providers speak the same readsb aircraft shape; they differ only in URL
+// and the array key (adsb.lol → `ac`, adsb.fi → `aircraft`). classifyFlight
+// works on either unchanged.
+async function fetchAdsbLol(lat: number, lon: number, dist: number): Promise<any[]> {
   try {
-    const url = `https://api.adsb.lol/v2/lat/${region.lat}/lon/${region.lon}/dist/${region.dist}`;
-    const res = await fetch(url, {
+    const res = await fetch(`https://api.adsb.lol/v2/lat/${lat}/lon/${lon}/dist/${dist}`, {
       signal: AbortSignal.timeout(12000),
       headers: { 'Accept': 'application/json' },
     });
-    if (res.ok) {
-      const data = await res.json();
-      return data.ac || [];
-    }
+    if (res.ok) return (await res.json()).ac || [];
   } catch (e) {
-    console.warn(`Region fetch failed for lat=${region.lat}:`, e);
+    console.warn(`adsb.lol fetch failed for lat=${lat}:`, e instanceof Error ? e.message : e);
   }
   return [];
+}
+
+async function fetchAdsbFi(lat: number, lon: number): Promise<any[]> {
+  try {
+    const res = await fetch(`https://opendata.adsb.fi/api/v2/lat/${lat}/lon/${lon}/dist/${FALLBACK_DIST}`, {
+      signal: AbortSignal.timeout(8000),
+      headers: { 'Accept': 'application/json' },
+    });
+    if (res.ok) return (await res.json()).aircraft || [];
+  } catch (e) {
+    console.warn(`adsb.fi fetch failed for lat=${lat}:`, e instanceof Error ? e.message : e);
+  }
+  return [];
+}
+
+// Run async tasks with bounded concurrency so the fallback doesn't fan all hub
+// requests out at once and trip adsb.fi's rate limit. Never rejects — a failed
+// task just contributes its own [] (handled inside the fetchers).
+async function mapPool<T, R>(items: T[], poolSize: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const idx = next++;
+      results[idx] = await fn(items[idx]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(poolSize, items.length) }, worker));
+  return results;
 }
 
 function classifyFlight(f: any) {
@@ -132,13 +184,16 @@ function classifyFlight(f: any) {
 let cachedData: any = null;
 let lastFetchTime = 0;
 const CACHE_TTL = 45000; // 45 seconds cache window
+const EMPTY_CACHE_TTL = 15000; // both providers down → retry sooner
 let fetchPromise: Promise<any> | null = null;
 
 export async function GET() {
   const now = Date.now();
 
-  // Return cached data if within TTL
-  if (cachedData && now - lastFetchTime < CACHE_TTL) {
+  // Return cached data if within TTL. An empty result (every provider failed)
+  // is held only briefly so the map recovers fast once a provider returns.
+  const ttl = cachedData && cachedData.total === 0 ? EMPTY_CACHE_TTL : CACHE_TTL;
+  if (cachedData && now - lastFetchTime < ttl) {
     return NextResponse.json(cachedData, {
       headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' },
     });
@@ -161,17 +216,11 @@ export async function GET() {
 
   // Start new global fetch
   fetchPromise = (async () => {
-    // Fetch all 6 regions in parallel
-    const regionResults = await Promise.allSettled(
-      REGIONS.map(r => fetchRegion(r))
-    );
-
     const allRaw: any[] = [];
     const seenHex = new Set<string>();
-
-    for (const result of regionResults) {
-      if (result.status === 'fulfilled') {
-        for (const ac of result.value) {
+    const collect = (lists: any[][]) => {
+      for (const list of lists) {
+        for (const ac of list) {
           const hex = (ac.hex || '').toLowerCase().trim();
           if (hex && !seenHex.has(hex)) {
             seenHex.add(hex);
@@ -179,6 +228,19 @@ export async function GET() {
           }
         }
       }
+    };
+
+    // Primary: adsb.lol across the 6 wide regions, in parallel.
+    let source: 'adsb.lol' | 'adsb.fi' | 'none' = 'adsb.lol';
+    const primary = await Promise.allSettled(REGIONS.map(r => fetchAdsbLol(r.lat, r.lon, r.dist)));
+    collect(primary.map(r => (r.status === 'fulfilled' ? r.value : [])));
+
+    // Fallback: only if adsb.lol returned nothing (outage). Sample busy
+    // airspaces via adsb.fi, throttled to its rate limit. Partial coverage.
+    if (allRaw.length === 0) {
+      const fallback = await mapPool(FALLBACK_HUBS, 4, h => fetchAdsbFi(h.lat, h.lon));
+      collect(fallback);
+      source = allRaw.length > 0 ? 'adsb.fi' : 'none';
     }
 
     // Classify all flights
@@ -193,7 +255,8 @@ export async function GET() {
       if (!flight) continue;
 
       // GPS jamming detection
-      if (typeof flight.nac_p === 'number' && flight.nac_p <= JAMMING_NACAP_THRESHOLD && !flight.grounded) {
+      // NACp = 0 means "not transmitted" (unknown), not "fully jammed" — exclude it.
+      if (typeof flight.nac_p === 'number' && flight.nac_p > 0 && flight.nac_p <= JAMMING_NACAP_THRESHOLD && !flight.grounded) {
         gpsJamming.push({
           lat: flight.lat,
           lng: flight.lng,
@@ -220,6 +283,7 @@ export async function GET() {
       military_flights: military,
       gps_jamming: jammingZones,
       total: allRaw.length,
+      source,
       timestamp: new Date().toISOString(),
     };
   })();
