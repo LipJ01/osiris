@@ -61,6 +61,7 @@ export function useGamepadMapControl({
     const DEADZONE = 0.15;
     const PAN_PX_PER_FRAME = 9;
     const TRIGGER_ZOOM_PER_FRAME = 0.06; // at full trigger pull
+    const PITCH_DEG_PER_FRAME = 1.2;     // bumper tilt speed (degrees/frame)
     const SPRING_OMEGA = 14;             // critically-damped spring (ζ = 1)
     const apply = (v: number) => (Math.abs(v) < DEADZONE ? 0 : Math.sign(v) * (Math.abs(v) - DEADZONE) / (1 - DEADZONE));
 
@@ -92,6 +93,18 @@ export function useGamepadMapControl({
         const trigger = rt - lt;
         if (Math.abs(trigger) > 0.05) {
           map.setZoom(map.getZoom() + trigger * TRIGGER_ZOOM_PER_FRAME);
+        }
+
+        // ── Bumpers (LB=4, RB=5) tilt the camera pitch ── LB up (toward the
+        // horizon), RB down (back toward top-down). Clamped to the map's
+        // configured pitch range.
+        const lb = gp.buttons[4]?.value ?? (gp.buttons[4]?.pressed ? 1 : 0);
+        const rb = gp.buttons[5]?.value ?? (gp.buttons[5]?.pressed ? 1 : 0);
+        const tilt = lb - rb;
+        if (Math.abs(tilt) > 0.05) {
+          const maxPitch = map.getMaxPitch();
+          const minPitch = map.getMinPitch();
+          map.setPitch(Math.max(minPitch, Math.min(maxPitch, map.getPitch() + tilt * PITCH_DEG_PER_FRAME)));
         }
 
         // Find nearest snappable POI to canvas center, throttled to ~10Hz; the
